@@ -3,6 +3,7 @@ use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
 
+
 #[link(name = "curl")]
 extern {
     fn curl_easy_escape(h: uintptr_t, url: *c_char, length: c_int) -> *c_char;
@@ -13,6 +14,7 @@ extern {
     fn curl_easy_reset(h: uintptr_t);
     fn curl_easy_strerror(code: c_int) -> *c_char;
     fn curl_easy_setopt(h: uintptr_t, option: c_int, parameter: uintptr_t) -> c_int;
+    fn curl_easy_unescape(h: uintptr_t, url: *c_char, inlength: c_int, outlength: *c_int) -> *c_char;
     fn curl_free(ptr: *c_char);
 }
 
@@ -60,6 +62,20 @@ impl Curl {
     pub fn reset(&self) {
         unsafe { curl_easy_reset(self.handle) }
     }
+
+    pub fn unescape(&self, url: &str) -> ~str {
+        let c_url = url.to_c_str();
+        let outlen: c_int = 0;  // does not need to be mut
+        c_url.with_ref(|c_buf| {
+                unsafe {
+                    let ret = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &outlen);
+                    let unescaped_url = str::raw::from_buf_len(ret as *u8, outlen as uint);
+                    curl_free(ret);
+                    unescaped_url
+                }
+            })
+    }
+
 }
 
 pub fn init() -> Curl {

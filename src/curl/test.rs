@@ -55,11 +55,18 @@ fn test_easy_duphandle() {
     cc.cleanup();
 }
 
-
 #[test]
 fn test_easy_reset() {
     let c = curl::easy::Curl::init();
     c.reset();
     assert!(!c.is_null());
+    c.cleanup();
+}
+
+#[test]
+fn test_easy_unescape() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.unescape("abcEFG"), ~"abcEFG");
+    assert_eq!(c.unescape("%26%2A%28%29"), ~"&*()");
     c.cleanup();
 }
