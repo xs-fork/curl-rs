@@ -21,3 +21,5 @@ pub fn version() -> ~str {
         str::from_utf8_owned(cver.container_into_owned_bytes())
     }
 }
+
+pub mod easy;
