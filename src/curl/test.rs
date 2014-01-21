@@ -70,3 +70,21 @@ fn test_easy_unescape() {
     assert_eq!(c.unescape("%26%2A%28%29"), ~"&*()");
     c.cleanup();
 }
+
+#[test]
+fn test_easy_setopt_URL() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
+    let ret = c.perform();
+    println!("perform result = {}", curl::easy::strerror(ret));
+    assert!(ret == 0 || ret == 7); // OK or cound't connect
+    c.cleanup();
+}
+
+#[test]
+fn test_easy_setopt() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
+    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, true), 0);
+    let ret = c.perform();
+}
