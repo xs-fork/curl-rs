@@ -18,11 +18,6 @@ extern {
     fn curl_free(ptr: *c_char);
 }
 
-pub struct Curl {
-    handle: uintptr_t,
-}
-
-
 pub trait ToCurlOptParam {
     fn to_curl_opt_param(&self) -> uintptr_t;
 }
@@ -45,10 +40,28 @@ impl ToCurlOptParam for bool {
 impl<'a> ToCurlOptParam for &'a str {
     fn to_curl_opt_param(&self) -> uintptr_t {
         let c_string = self.to_c_str();
-        unsafe { ptr::to_unsafe_ptr(&c_string.container_into_owned_bytes()[0]) as uintptr_t }
+        ptr::to_unsafe_ptr(&c_string.container_into_owned_bytes()[0]) as uintptr_t
     }
 }
 
+// NOTE: return [u8] as a *c_char will not guarantee a \0 byte at end.
+//       So here I convert it to a CString.
+impl<'a> ToCurlOptParam for &'a [u8] {
+    fn to_curl_opt_param(&self) -> uintptr_t {
+        let c_string = self.to_c_str();
+        ptr::to_unsafe_ptr(&c_string.container_into_owned_bytes()[0]) as uintptr_t
+    }
+}
+
+pub struct Curl {
+    handle: uintptr_t,
+}
+
+impl Drop for Curl {
+    fn drop(&mut self) {
+        unsafe { curl_easy_cleanup(self.handle) }
+    }
+}
 
 // TODO: add deriving
 impl Curl {
@@ -74,8 +87,9 @@ impl Curl {
         Curl { handle: hd }
     }
 
+    /// empty func; use Drop trait instead
     pub fn cleanup(&self) {
-        unsafe { curl_easy_cleanup(self.handle) }
+        // unsafe { curl_easy_cleanup(self.handle) }
     }
 
     pub fn duphandle(&self) -> Curl {
@@ -88,17 +102,6 @@ impl Curl {
         ret as int
     }
 
-    //
-    pub fn setopt0(&self, option: c_int, param: &str) -> int {
-        let c_param = param.to_c_str();
-        c_param.with_ref(|c_buf| {
-                unsafe {
-                    curl_easy_setopt(self.handle, option, c_buf as uintptr_t) as int
-                }
-            })
-    }
-
-    // new trait version
     pub fn setopt<T: ToCurlOptParam>(&self, option: c_int, param: T) -> int {
         unsafe {
             curl_easy_setopt(self.handle, option, param.to_curl_opt_param()) as int
@@ -108,7 +111,6 @@ impl Curl {
     pub fn reset(&self) {
         unsafe { curl_easy_reset(self.handle) }
     }
-
 
     pub fn unescape(&self, url: &str) -> ~str {
         let c_url = url.to_c_str();
@@ -129,9 +131,9 @@ pub fn init() -> Curl {
     Curl { handle: hd }
 }
 
-pub fn cleanup(handle: Curl) {
-    let hd = handle.handle;
-    unsafe { curl_easy_cleanup(hd) }
+pub fn cleanup(_handle: Curl) {
+    // let hd = handle.handle;
+    // unsafe { curl_easy_cleanup(hd) }
 }
 
 

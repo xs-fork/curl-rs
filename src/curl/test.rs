@@ -76,7 +76,6 @@ fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
     let ret = c.perform();
-    println!("perform result = {}", curl::easy::strerror(ret));
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
 }
@@ -85,6 +84,19 @@ fn test_easy_setopt_URL() {
 fn test_easy_setopt() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
-    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, true), 0);
+    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, false), 0);
     let ret = c.perform();
+    assert_eq!(ret, 0);
+    c.cleanup();
+}
+
+#[test]
+fn test_easy_setopt_bytes() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::easy::opt::URL, bytes!("http://localhost:8000/")), 0);
+    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, false), 0);
+    assert_eq!(c.setopt(curl::easy::opt::POST, true), 0);
+    let ret = c.perform();
+    assert_eq!(ret, 0);
+    c.cleanup();
 }
