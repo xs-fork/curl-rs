@@ -3,6 +3,10 @@
 
 extern mod curl;
 
+use std::libc::{fopen, fclose};
+use std::c_str;
+use std::cast;
+
 #[test]
 fn test_version() {
     assert!(curl::version().len() > 0)
@@ -93,9 +97,8 @@ fn test_easy_setopt() {
 #[test]
 fn test_easy_setopt_bytes() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://baidu.com/")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com/")), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
-    assert_eq!(c.setopt(curl::opt::POST, true), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
     c.cleanup();
@@ -120,6 +123,22 @@ fn test_setopt_slist() {
 }
 
 #[test]
+fn test_setopt_writedata() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com")), 0);
+    let fp = "/tmp/test.out".to_c_str().with_ref(|fname| {
+            "w".to_c_str().with_ref(|mode| {
+                    unsafe { fopen(fname, mode) }
+                })
+                });
+    c.setopt(curl::opt::WRITEDATA, fp);
+    c.setopt(curl::opt::VERBOSE, false);
+    c.perform();
+    unsafe { fclose(fp) };
+}
+
+
+#[test]
 fn test_setopt_progress_function() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, bytes!("http://curl.haxx.se/download/curl-7.34.0.zip")), 0);
@@ -128,7 +147,7 @@ fn test_setopt_progress_function() {
         0
     };
     c.setopt(curl::opt::NOPROGRESS, false);
-
+    c.setopt(curl::opt::WRITEFUNCTION, 0);
     let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
     println!("setopt ret={}", ret);
     println!("perform result = {}", c.perform());

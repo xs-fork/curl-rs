@@ -1,10 +1,11 @@
-use std::libc::{uintptr_t, c_int, c_char, c_double};
+use std::libc::{uintptr_t, c_int, c_char, c_double, size_t, FILE};
 use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
 use std::ptr;
 use std::cast;
 
+use opt;
 // #[feature(link_args)]
 // #[cfg(target_os = "macos")]
 // #[link(args = "-o c-callback")]
@@ -86,14 +87,11 @@ impl<'r> ToCurlOptParam for 'r |f64,f64,f64,f64| -> int {
     }
 }
 
-// Callback
-
-pub extern "C" fn curl_cb_progress_fn(clientp: uintptr_t, dltotal: c_double,  dlnow: c_double,
-                                      ultotal: c_double, ulnow: c_double) -> c_int {
-    print!("\x08\x08\x08\x08\x08\x08\x08bnow: ={}\r", dlnow);
-    0 as c_int
+impl ToCurlOptParam for *FILE {
+    fn to_curl_opt_param(&self) -> uintptr_t {
+        unsafe { cast::transmute(*self) }
+    }
 }
-
 
 // Curl
 
@@ -148,14 +146,13 @@ impl Curl {
     }
 
     pub fn setopt<T: ToCurlOptParam>(&self, option: c_int, param: T) -> int {
-        if option == 20_056 {
-            println!("special set 20056, {}", option);
-            //unsafe { curl_easy_setopt(self.handle, option, ptr::to_unsafe_ptr(&progress_func) as uintptr_t) as int }
-            unsafe { curl_easy_setopt(self.handle, option, cast::transmute(curl_cb_progress_fn)) as int }
-        } else {
-            unsafe {
-                curl_easy_setopt(self.handle, option, param.to_curl_opt_param()) as int
-            }
+        match option {
+            opt::PROGRESSFUNCTION =>
+                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(curl_cb_progress_fn)) as int },
+            opt::WRITEFUNCTION =>
+                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(curl_cb_write_fn)) as int },
+            _ =>
+                unsafe { curl_easy_setopt(self.handle, option, param.to_curl_opt_param()) as int }
         }
     }
 
@@ -198,4 +195,23 @@ pub fn strerror(code: int) -> ~str {
         let cver = CString::new(curl_easy_strerror(code as c_int), false);
         str::from_utf8_owned(cver.container_into_owned_bytes()).unwrap()
     }
+}
+
+
+// Callback
+
+pub extern "C" fn curl_cb_progress_fn(clientp: uintptr_t, dltotal: c_double,  dlnow: c_double,
+                                      ultotal: c_double, ulnow: c_double) -> c_int {
+    print!("\x08\x08\x08\x08\x08\x08\x08bnow: = {}%\r", dlnow/dltotal*100f64);
+    0 as c_int
+}
+
+// size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
+pub extern "C" fn curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, userdata: uintptr_t) -> size_t {
+    size * nmemb
+}
+
+// size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
+pub extern "C" fn curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, userdata: uintptr_t) -> size_t {
+    size * nmemb
 }
