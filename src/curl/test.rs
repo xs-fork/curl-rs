@@ -74,7 +74,7 @@ fn test_easy_unescape() {
 #[test]
 fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://baidu.com/"), 0);
     let ret = c.perform();
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
@@ -83,20 +83,53 @@ fn test_easy_setopt_URL() {
 #[test]
 fn test_easy_setopt() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::easy::opt::URL, "http://localhost:8000/"), 0);
-    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, false), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://baidu.com/"), 0);
+    assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
+    let ret = c.perform();
+    assert_eq!(ret, 0);
+
+}
+
+#[test]
+fn test_easy_setopt_bytes() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://baidu.com/")), 0);
+    assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
+    assert_eq!(c.setopt(curl::opt::POST, true), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
     c.cleanup();
 }
 
 #[test]
-fn test_easy_setopt_bytes() {
+fn test_global_init() {
+    let ret = curl::global_init(curl::GLOBAL_ALL);
+    assert_eq!(ret, 0);
+    // curl::global_cleanup()
+}
+
+#[test]
+fn test_setopt_slist() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::easy::opt::URL, bytes!("http://localhost:8000/")), 0);
-    assert_eq!(c.setopt(curl::easy::opt::VERBOSE, false), 0);
-    assert_eq!(c.setopt(curl::easy::opt::POST, true), 0);
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://fledna.duapp.com/headers")), 0);
+    c.setopt(curl::opt::HTTPHEADER, ~[~"X-Dummy: just a test."]);
+    assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
     c.cleanup();
+}
+
+#[test]
+fn test_setopt_progress_function() {
+    let c = curl::easy::Curl::init();
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://curl.haxx.se/download/curl-7.34.0.zip")), 0);
+    let func: |f64,f64,f64,f64| -> int = |dltotal, dlnow, ultotal, ulnow| {
+        println!("progress func test: {} {} {} {}", dltotal, dlnow, ultotal, ulnow);
+        0
+    };
+    c.setopt(curl::opt::NOPROGRESS, false);
+
+    let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
+    println!("setopt ret={}", ret);
+    println!("perform result = {}", c.perform());
 }
