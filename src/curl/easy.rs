@@ -70,7 +70,7 @@ impl<'a> ToCurlOptParam for &'a [u8] {
 impl ToCurlOptParam for ~[~str] {
     fn to_curl_opt_param(&self) -> uintptr_t {
         self.iter().fold(0, |acc, item| {
-                item.to_c_str().with_ref(|s| {
+                item.with_c_str(|s| {
                         unsafe { curl_slist_append(acc, s) }
                     })
             })
@@ -170,8 +170,7 @@ impl Curl {
 
     // FIXME: handle \x00 byte in string
     pub fn escape(&self, url: &str) -> ~str {
-        let c_url = url.to_c_str();
-        c_url.with_ref(|c_buf| {
+        url.with_c_str(|c_buf| {
                 unsafe {
                     let ret = curl_easy_escape(self.handle, c_buf, url.len() as c_int);
                     let escaped_bytes = CString::new(ret, false).container_into_owned_bytes();
@@ -241,9 +240,8 @@ impl Curl {
     }
 
     pub fn unescape(&self, url: &str) -> ~str {
-        let c_url = url.to_c_str();
         let mut outlen: c_int = 0;  // does not need to be mut
-        c_url.with_ref(|c_buf| {
+        url.with_c_str(|c_buf| {
                 unsafe {
                     let ret = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &outlen);
                     let unescaped_url = str::raw::from_buf_len(ret as *u8, outlen as uint);
