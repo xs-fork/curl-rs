@@ -152,9 +152,11 @@ fn test_easy_getinfo() {
     c.setopt(curl::opt::URL, bytes!("http://localhost:8000/"));
     c.setopt(curl::opt::WRITEFUNCTION, 0);
     c.perform();
-    let mut val = c.getinfo1(curl::info::RESPONSE_CODE);
-    println!("!!!!!ret code = {}", val);
+    let mut val : Option<int> = c.getinfo(curl::info::RESPONSE_CODE);
+    assert_eq!(val.unwrap(), 200);
     val = c.getinfo(curl::info::REQUEST_SIZE);
-    println!("!!!!!req size = {}", val);
-
+    assert!(val.unwrap() > 0);
+    let tt : Option<f64> = c.getinfo(curl::info::TOTAL_TIME);
+    assert!(tt.unwrap() > 0f64);
+    println!("curl total time => ret={}", tt);
 }

@@ -96,29 +96,27 @@ pub trait FromCurlInfoPtr {
     fn from_curl_info_ptr(uintptr_t) -> Self;
 }
 
-// impl FromCurlInfoPtr for ~str {
-//     fn new_ptr(&self) -> uintptr_t {
-//         let val = Gc::new(~[0u8,..2048]);
-//         let valp = Gc::new(&val.borrow()[0]);
-//         unsafe { cast::transmute(valp.borrow()) }
-//     }
-//     fn from_curl_info_ptr(ptr: uintptr_t) -> ~str {
-//         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
-//             ~""
-//         } else {
-//             unsafe {
-//                 let p : **u8 = cast::transmute(ptr);
-//                 str::from_utf8_owned(cast::transmute(*p)).unwrap()
-//             }
-//         }
-//     }
-
-// }
+impl FromCurlInfoPtr for ~str {
+    fn new_ptr(&self) -> uintptr_t {
+        let p = Gc::new(0 as *c_char);
+        unsafe { cast::transmute(p.borrow()) }
+    }
+    fn from_curl_info_ptr(ptr: uintptr_t) -> ~str {
+        if ptr == 0 {           // dummy create :), rust use this to identify which type to use
+            ~""
+        } else {
+            unsafe {
+                let p : **c_char = cast::transmute(ptr);
+                let ret = CString::new(*p, false);
+                str::from_utf8_owned(ret.container_into_owned_bytes()).unwrap()
+            }
+        }
+    }
+}
 
 impl FromCurlInfoPtr for int {
     fn new_ptr(&self) -> uintptr_t {
         let val = Gc::new(0 as c_long);
-        //unsafe { cast::transmute_mut_unsafe(ptr::to_unsafe_ptr(&val)) as uintptr_t }
         unsafe { cast::transmute(val.borrow()) }
     }
     fn from_curl_info_ptr(ptr: uintptr_t) -> int {
@@ -150,6 +148,26 @@ impl FromCurlInfoPtr for f64 {
     }
 }
 
+impl FromCurlInfoPtr for ~[~str] {
+    fn new_ptr(&self) -> uintptr_t {
+        let p = Gc::new(0 as *c_void);
+        unsafe { cast::transmute(p.borrow()) }
+    }
+    fn from_curl_info_ptr(ptr: uintptr_t) -> ~[~str] {
+        if ptr == 0 {           // dummy create :), rust use this to identify which type to use
+            ~[]
+        } else {
+            unsafe {
+                // TODO: implement, free slist
+                ~[~"DUMMY-INFO-SLIST-RETURN"]
+                // let p : **c_char = cast::transmute(ptr);
+                // let ret = CString::new(*p, false);
+                // str::from_utf8_owned(ret.container_into_owned_bytes()).unwrap()
+
+            }
+        }
+    }
+}
 
 // Curl
 pub struct Curl {
