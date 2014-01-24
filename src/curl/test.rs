@@ -14,20 +14,13 @@ fn test_version() {
 
 #[test]
 fn test_easy_init() {
-    let h = curl::easy::init();
-    assert!(!curl::easy::init().is_null());
-    curl::easy::cleanup(h)
-}
-
-#[test]
-fn test_easy_curl_init() {
     let c = curl::easy::Curl::init();
     assert!(!c.is_null());
     c.cleanup()
 }
 
 #[test]
-fn test_easy_curl_perform() {
+fn test_easy_perform_only() {
     let c = curl::easy::Curl::init();
     let ret = c.perform();
     assert!(ret == 3);
@@ -78,7 +71,7 @@ fn test_easy_unescape() {
 #[test]
 fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, "http://baidu.com/"), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
     let ret = c.perform();
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
@@ -87,7 +80,7 @@ fn test_easy_setopt_URL() {
 #[test]
 fn test_easy_setopt() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, "http://baidu.com/"), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
@@ -97,7 +90,7 @@ fn test_easy_setopt() {
 #[test]
 fn test_easy_setopt_bytes() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com/")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://fledna.duapp.com/ip")), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
@@ -151,4 +144,17 @@ fn test_setopt_progress_function() {
     let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
     println!("setopt ret={}", ret);
     println!("perform result = {}", c.perform());
+}
+
+#[test]
+fn test_easy_getinfo() {
+    let c = curl::easy::Curl::init();
+    c.setopt(curl::opt::URL, bytes!("http://localhost:8000/"));
+    c.setopt(curl::opt::WRITEFUNCTION, 0);
+    c.perform();
+    let mut val = c.getinfo1(curl::info::RESPONSE_CODE);
+    println!("!!!!!ret code = {}", val);
+    val = c.getinfo(curl::info::REQUEST_SIZE);
+    println!("!!!!!req size = {}", val);
+
 }

@@ -38,3 +38,4 @@ pub fn version() -> ~str {
 
 pub mod easy;
 pub mod opt;
+pub mod info;
