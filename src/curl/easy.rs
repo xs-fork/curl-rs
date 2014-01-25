@@ -6,6 +6,7 @@ use std::ptr;
 use std::cast;
 use std::gc::Gc;
 use std::at_vec;
+use std::to_str::ToStr;
 
 use opt;
 
@@ -107,8 +108,8 @@ impl FromCurlInfoPtr for ~str {
         } else {
             unsafe {
                 let p : **c_char = cast::transmute(ptr);
-                let ret = CString::new(*p, false);
-                str::from_utf8_owned(ret.container_into_owned_bytes()).unwrap()
+                // CString -> Option<&'a str> -> &'a str -> ~str
+                CString::new(*p, false).as_str().unwrap().to_str()
             }
         }
     }
@@ -191,16 +192,14 @@ impl Curl {
         url.with_c_str(|c_buf| {
                 unsafe {
                     let ret = curl_easy_escape(self.handle, c_buf, url.len() as c_int);
-                    let escaped_bytes = CString::new(ret, false).container_into_owned_bytes();
-                    curl_free(ret);
-                    str::from_utf8_owned(escaped_bytes).unwrap()
+                    // FIXME: owns c buffer, and free it, or not owns c buffer, manually call curl_free
+                    CString::new(ret, true).as_str().unwrap().to_str()
                 }
             })
     }
 
     pub fn init() -> Curl {
-        let hd = unsafe { curl_easy_init() };
-        Curl { handle: hd }
+        Curl { handle: unsafe { curl_easy_init() } }
     }
 
     /// empty fn, use Drop trait instead
@@ -209,24 +208,11 @@ impl Curl {
     }
 
     pub fn duphandle(&self) -> Curl {
-        let ret = unsafe { curl_easy_duphandle(self.handle) };
-        Curl { handle: ret }
+        Curl { handle: unsafe { curl_easy_duphandle(self.handle) } }
     }
-
-    pub fn getinfo1(&self, option: c_int) -> Option<int> {
-        let mut outval: c_long = 0;  // does not need to be mut
-        let ret = unsafe { curl_easy_getinfo(self.handle, option, cast::transmute(&outval)) };
-        if ret == 0 {
-            Some(outval as int)
-        } else {
-            None
-        }
-    }
-
 
     pub fn getinfo<T: FromCurlInfoPtr>(&self, option: c_int) -> Option<T> {
-        let dummy : uintptr_t = 0;
-        let inf : T = FromCurlInfoPtr::from_curl_info_ptr(dummy);
+        let inf : T = FromCurlInfoPtr::from_curl_info_ptr(0 as uintptr_t);
         let p = inf.new_ptr();
         let ret = unsafe { curl_easy_getinfo(self.handle, option, cast::transmute(p)) };
         let val : T = unsafe { FromCurlInfoPtr::from_curl_info_ptr(cast::transmute(p)) };
@@ -273,7 +259,7 @@ impl Curl {
 pub fn strerror(code: int) -> ~str {
     unsafe {
         let cver = CString::new(curl_easy_strerror(code as c_int), false);
-        str::from_utf8_owned(cver.container_into_owned_bytes()).unwrap()
+        cver.as_str().unwrap().to_str()
     }
 }
 
