@@ -1,11 +1,12 @@
 #[license = "MIT"];
 
-
 extern mod curl;
 
 use std::libc::{fopen, fclose};
 use std::c_str;
 use std::cast;
+
+static TEST_URL : &'static str = "http://www.baidu.com/";
 
 #[test]
 fn test_version() {
@@ -71,8 +72,12 @@ fn test_easy_unescape() {
 #[test]
 fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
+    assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     let ret = c.perform();
+    println!("test_easy_setopt_URL ret={}", ret);
+    let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
+    println!("test_easy_setopt_URL url={}", eurl);
+
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
 }
@@ -80,9 +85,12 @@ fn test_easy_setopt_URL() {
 #[test]
 fn test_easy_setopt() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
+    assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
+    let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
+    println!("test_easy_setopt url={}", eurl);
+
     assert_eq!(ret, 0);
 
 }
@@ -90,7 +98,7 @@ fn test_easy_setopt() {
 #[test]
 fn test_easy_setopt_bytes() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://fledna.duapp.com/ip")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com/")), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
@@ -105,9 +113,9 @@ fn test_global_init() {
 }
 
 #[test]
-fn test_setopt_slist() {
+fn test_easy_setopt_slist() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://fledna.duapp.com/headers")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
     c.setopt(curl::opt::HTTPHEADER, ~[~"X-Dummy: just a test."]);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
@@ -116,9 +124,9 @@ fn test_setopt_slist() {
 }
 
 #[test]
-fn test_setopt_writedata() {
+fn test_easy_setopt_writedata() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     let fp = "/tmp/test.out".to_c_str().with_ref(|fname| {
             "w".to_c_str().with_ref(|mode| {
                     unsafe { fopen(fname, mode) }
@@ -132,9 +140,9 @@ fn test_setopt_writedata() {
 
 
 #[test]
-fn test_setopt_progress_function() {
+fn test_easy_setopt_progress_function() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://curl.haxx.se/download/curl-7.34.0.zip")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, "http://curl.haxx.se/download/curl-7.34.0.zip"), 0);
     let func: |f64,f64,f64,f64| -> int = |dltotal, dlnow, ultotal, ulnow| {
         println!("progress func test: {} {} {} {}", dltotal, dlnow, ultotal, ulnow);
         0
@@ -149,7 +157,7 @@ fn test_setopt_progress_function() {
 #[test]
 fn test_easy_getinfo() {
     let c = curl::easy::Curl::init();
-    c.setopt(curl::opt::URL, bytes!("http://localhost:8000/"));
+    c.setopt(curl::opt::URL, TEST_URL);
     c.setopt(curl::opt::WRITEFUNCTION, 0);
     c.perform();
     let mut val : Option<int> = c.getinfo(curl::info::RESPONSE_CODE);

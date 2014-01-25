@@ -24,6 +24,7 @@ extern {
     fn curl_easy_unescape(h: uintptr_t, url: *c_char, inlength: c_int, outlength: *c_int) -> *c_char;
     fn curl_free(ptr: *c_char);
     fn curl_slist_append(list: uintptr_t, string: *c_char) -> uintptr_t;
+    fn curl_slist_free_all(list: uintptr_t);
 }
 
 pub trait ToCurlOptParam {
@@ -35,7 +36,6 @@ impl ToCurlOptParam for uintptr_t {
         *self
     }
 }
-
 
 impl ToCurlOptParam for int {
     fn to_curl_opt_param(&self) -> uintptr_t {
@@ -159,12 +159,16 @@ impl FromCurlInfoPtr for ~[~str] {
             ~[]
         } else {
             unsafe {
+                // let head: *SList = cast::transmute(ptr);
+                // let mut p: SList = head;
+                // let mut ret : ~[~str] = ~[];
+                // while p != 0 {
+                //     ret.append(CString::new(p.data, false).as_str().to_str());
+                //     p = p.next;
+                // }
+                // ret
                 // TODO: implement, free slist
                 ~[~"DUMMY-INFO-SLIST-RETURN"]
-                // let p : **c_char = cast::transmute(ptr);
-                // let ret = CString::new(*p, false);
-                // str::from_utf8_owned(ret.container_into_owned_bytes()).unwrap()
-
             }
         }
     }
@@ -215,8 +219,13 @@ impl Curl {
         let inf : T = FromCurlInfoPtr::from_curl_info_ptr(0 as uintptr_t);
         let p = inf.new_ptr();
         let ret = unsafe { curl_easy_getinfo(self.handle, option, cast::transmute(p)) };
-        let val : T = unsafe { FromCurlInfoPtr::from_curl_info_ptr(cast::transmute(p)) };
-        Some(val)
+        if ret == 0 {           // OK
+            let val : T = unsafe { FromCurlInfoPtr::from_curl_info_ptr(cast::transmute(p)) };
+            Some(val)
+        } else {
+            // println!("!!!! fail getinfo() ret={}", ret);
+            None
+        }
     }
 
     pub fn perform(&self) -> int {
