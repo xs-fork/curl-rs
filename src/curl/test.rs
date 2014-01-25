@@ -74,10 +74,7 @@ fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     let ret = c.perform();
-    println!("test_easy_setopt_URL ret={}", ret);
     let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
-    println!("test_easy_setopt_URL url={}", eurl);
-
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
 }
@@ -89,8 +86,6 @@ fn test_easy_setopt() {
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
-    println!("test_easy_setopt url={}", eurl);
-
     assert_eq!(ret, 0);
 
 }
@@ -143,15 +138,15 @@ fn test_easy_setopt_writedata() {
 fn test_easy_setopt_progress_function() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, "http://curl.haxx.se/download/curl-7.34.0.zip"), 0);
-    let func: |f64,f64,f64,f64| -> int = |dltotal, dlnow, ultotal, ulnow| {
-        println!("progress func test: {} {} {} {}", dltotal, dlnow, ultotal, ulnow);
-        0
-    };
+    // let func: |f64,f64,f64,f64| -> int = |dltotal, dlnow, ultotal, ulnow| {
+    //     println!("progress func test: {} {} {} {}", dltotal, dlnow, ultotal, ulnow);
+    //     0
+    // };
     c.setopt(curl::opt::NOPROGRESS, false);
     c.setopt(curl::opt::WRITEFUNCTION, 0);
     let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
-    println!("setopt ret={}", ret);
-    println!("perform result = {}", c.perform());
+    assert_eq!(ret, 0);
+    assert_eq!(c.perform(), 9);
 }
 
 #[test]
@@ -166,5 +161,4 @@ fn test_easy_getinfo() {
     assert!(val.unwrap() > 0);
     let tt : Option<f64> = c.getinfo(curl::info::TOTAL_TIME);
     assert!(tt.unwrap() > 0f64);
-    println!("curl total time => ret={}", tt);
 }
