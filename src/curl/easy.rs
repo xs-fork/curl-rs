@@ -275,7 +275,7 @@ pub fn strerror(code: int) -> ~str {
 
 // Callback
 
-pub extern "C" fn c_curl_cb_progress_fn(userdata: uintptr_t, dltotal: c_double,  dlnow: c_double,
+pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,  dlnow: c_double,
                                         ultotal: c_double, ulnow: c_double) -> c_int {
     print!("\x08\x08\x08\x08\x08\x08\x08now: = {}%\r", dlnow/dltotal*100f64);
     if dlnow > 8000f64 {
@@ -286,17 +286,17 @@ pub extern "C" fn c_curl_cb_progress_fn(userdata: uintptr_t, dltotal: c_double, 
 }
 
 // size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
-pub extern "C" fn c_curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, userdata: uintptr_t) -> size_t {
+pub extern "C" fn c_curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     size * nmemb
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
-pub extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, userdata: uintptr_t) -> size_t {
+pub extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
-pub extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, userdata: uintptr_t) -> size_t {
+pub extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 

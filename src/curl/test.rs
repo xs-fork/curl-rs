@@ -146,7 +146,7 @@ fn test_easy_setopt_progress_function() {
     c.setopt(curl::opt::WRITEFUNCTION, 0);
     let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
     assert_eq!(ret, 0);
-    assert_eq!(c.perform(), 0);
+    assert_eq!(c.perform(), 42);
 }
 
 #[test]
