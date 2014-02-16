@@ -2,10 +2,9 @@ use std::libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, FILE, c_void
 use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
-use std::ptr;
+use std::ptr::RawPtr;
 use std::cast;
 use std::gc::Gc;
-use std::at_vec;
 use std::to_str::ToStr;
 
 use opt;
@@ -55,7 +54,7 @@ impl ToCurlOptParam for bool {
 impl<'a> ToCurlOptParam for &'a str {
     fn to_curl_opt_param(&self) -> uintptr_t {
         let c_string = self.to_c_str();
-        ptr::to_unsafe_ptr(&c_string.container_into_owned_bytes()[0]) as uintptr_t
+        unsafe { cast::transmute(&c_string.container_into_owned_bytes()[0]) }
     }
 }
 
@@ -64,7 +63,7 @@ impl<'a> ToCurlOptParam for &'a str {
 impl<'a> ToCurlOptParam for &'a [u8] {
     fn to_curl_opt_param(&self) -> uintptr_t {
         let c_string = self.to_c_str();
-        ptr::to_unsafe_ptr(&c_string.container_into_owned_bytes()[0]) as uintptr_t
+        unsafe { cast::transmute(&c_string.container_into_owned_bytes()[0]) }
     }
 }
 
@@ -86,7 +85,7 @@ impl ToCurlOptParam for *FILE {
 
 impl<'r> ToCurlOptParam for 'r |f64,f64,f64,f64| -> int {
     fn to_curl_opt_param(&self) -> uintptr_t {
-        ptr::to_unsafe_ptr(self) as uintptr_t
+        unsafe { cast::transmute(self) }
     }
 }
 

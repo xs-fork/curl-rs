@@ -1,3 +1,6 @@
+#[crate_id = "curl#0.1dev"];
+#[crate_type = "rlib"];
+#[crate_type = "dylib"];
 #[desc = "A rust package for libcurl."];
 #[license = "MIT"];
 
