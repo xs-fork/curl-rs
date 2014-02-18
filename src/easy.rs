@@ -157,18 +157,17 @@ impl FromCurlInfoPtr for ~[~str] {
         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
             ~[]
         } else {
-            unsafe {
-                // let head: *SList = cast::transmute(ptr);
-                // let mut p: SList = head;
-                // let mut ret : ~[~str] = ~[];
-                // while p != 0 {
-                //     ret.append(CString::new(p.data, false).as_str().to_str());
-                //     p = p.next;
-                // }
-                // ret
-                // TODO: implement, free slist
-                ~[~"DUMMY-INFO-SLIST-RETURN"]
-            }
+            // unsafe {
+            // let head: *SList = cast::transmute(ptr);
+            // let mut p: SList = head;
+            // let mut ret : ~[~str] = ~[];
+            // while p != 0 {
+            //     ret.append(CString::new(p.data, false).as_str().to_str());
+            //     p = p.next;
+            // }
+            // ret
+            // TODO: implement, free slist
+            ~[~"DUMMY-INFO-SLIST-RETURN"]
         }
     }
 }
