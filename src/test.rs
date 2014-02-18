@@ -1,6 +1,6 @@
 #[license = "MIT"];
 
-extern mod curl;
+extern crate curl;
 
 use std::libc::{fopen, fclose};
 use std::c_str;
