@@ -1,9 +1,9 @@
-use std::libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, FILE, c_void};
+use libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, FILE, c_void};
 use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
 use std::ptr::RawPtr;
-use std::cast;
+use std::mem;
 use std::gc::Gc;
 use std::to_str::ToStr;
 
@@ -15,7 +15,7 @@ extern {
     fn curl_easy_init() -> uintptr_t;
     fn curl_easy_cleanup(h: uintptr_t);
     fn curl_easy_duphandle(h: uintptr_t) -> uintptr_t;
-    fn curl_easy_getinfo(h: uintptr_t, inf: c_int, ptr: uintptr_t) -> c_int;
+    fn curl_easy_getinfo(h: uintptr_t, inf: c_int, ptr: *mut c_void) -> c_int;
     fn curl_easy_perform(h: uintptr_t) -> c_int;
     fn curl_easy_reset(h: uintptr_t);
     fn curl_easy_strerror(code: c_int) -> *c_char;
@@ -27,87 +27,82 @@ extern {
 }
 
 pub trait ToCurlOptParam {
-    fn to_curl_opt_param(&self) -> uintptr_t;
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|);
 }
 
 impl ToCurlOptParam for uintptr_t {
-    fn to_curl_opt_param(&self) -> uintptr_t {
-        *self
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        f(*self)
     }
 }
 
 impl ToCurlOptParam for int {
-    fn to_curl_opt_param(&self) -> uintptr_t {
-        *self as uintptr_t
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        f(*self as uintptr_t)
     }
 }
 
 impl ToCurlOptParam for bool {
-    fn to_curl_opt_param(&self) -> uintptr_t {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         match *self {
-            true  => 1,
-            false => 0
+            true  => f(1),
+            false => f(0)
         }
     }
 }
 
 impl<'a> ToCurlOptParam for &'a str {
-    fn to_curl_opt_param(&self) -> uintptr_t {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         let c_string = self.to_c_str();
-        unsafe { cast::transmute(&c_string.container_into_owned_bytes()[0]) }
+        unsafe { f(mem::transmute(c_string.as_bytes().as_ptr())) };
     }
 }
 
 // NOTE: return [u8] as a *c_char will not guarantee a \0 byte at end.
 //       So here I convert it to a CString.
 impl<'a> ToCurlOptParam for &'a [u8] {
-    fn to_curl_opt_param(&self) -> uintptr_t {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         let c_string = self.to_c_str();
-        unsafe { cast::transmute(&c_string.container_into_owned_bytes()[0]) }
+        unsafe { f(mem::transmute(c_string.as_bytes().as_ptr())) };
     }
 }
 
-impl ToCurlOptParam for ~[~str] {
-    fn to_curl_opt_param(&self) -> uintptr_t {
-        self.iter().fold(0, |acc, item| {
+impl ToCurlOptParam for Vec<String> {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        f(self.iter().fold(0, |acc, item| {
                 item.with_c_str(|s| {
                         unsafe { curl_slist_append(acc, s) }
                     })
-            })
+            }))
     }
 }
 
 impl ToCurlOptParam for *FILE {
-    fn to_curl_opt_param(&self) -> uintptr_t {
-        unsafe { cast::transmute(*self) }
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        unsafe { f(mem::transmute(*self)) }
     }
 }
 
-impl<'r> ToCurlOptParam for 'r |f64,f64,f64,f64| -> int {
-    fn to_curl_opt_param(&self) -> uintptr_t {
-        unsafe { cast::transmute(self) }
+impl<'r> ToCurlOptParam for |f64,f64,f64,f64|:'r -> int {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        unsafe { f(mem::transmute(self)) }
     }
 }
 
 
 // for curl_easy_getinfo()
 pub trait FromCurlInfoPtr {
-    fn new_ptr(&self) -> uintptr_t;
     fn from_curl_info_ptr(uintptr_t) -> Self;
 }
 
-impl FromCurlInfoPtr for ~str {
-    fn new_ptr(&self) -> uintptr_t {
-        let p = Gc::new(0 as *c_char);
-        unsafe { cast::transmute(p.borrow()) }
-    }
-    fn from_curl_info_ptr(ptr: uintptr_t) -> ~str {
+impl FromCurlInfoPtr for String {
+    fn from_curl_info_ptr(ptr: uintptr_t) -> String {
         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
-            ~""
+            "".to_string()
         } else {
             unsafe {
-                let p : **c_char = cast::transmute(ptr);
-                // CString -> Option<&'a str> -> &'a str -> ~str
+                let p : **c_char = mem::transmute(ptr);
+                // CString -> Option<&'a str> -> &'a str -> String
                 CString::new(*p, false).as_str().unwrap().to_str()
             }
         }
@@ -115,16 +110,12 @@ impl FromCurlInfoPtr for ~str {
 }
 
 impl FromCurlInfoPtr for int {
-    fn new_ptr(&self) -> uintptr_t {
-        let val = Gc::new(0 as c_long);
-        unsafe { cast::transmute(val.borrow()) }
-    }
     fn from_curl_info_ptr(ptr: uintptr_t) -> int {
         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
             0
         } else {
             unsafe {
-                let p : *c_long = cast::transmute(ptr);
+                let p : *c_long = mem::transmute(ptr);
                 *p as int
             }
         }
@@ -132,42 +123,34 @@ impl FromCurlInfoPtr for int {
 }
 
 impl FromCurlInfoPtr for f64 {
- fn new_ptr(&self) -> uintptr_t {
-        let val = Gc::new(0 as c_double);
-        unsafe { cast::transmute(val.borrow()) }
-    }
     fn from_curl_info_ptr(ptr: uintptr_t) -> f64 {
         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
             0f64
         } else {
             unsafe {
-                let p : *c_double = cast::transmute(ptr);
+                let p : *c_double = mem::transmute(ptr);
                 *p as f64
             }
         }
     }
 }
 
-impl FromCurlInfoPtr for ~[~str] {
-    fn new_ptr(&self) -> uintptr_t {
-        let p = Gc::new(0 as *c_void);
-        unsafe { cast::transmute(p.borrow()) }
-    }
-    fn from_curl_info_ptr(ptr: uintptr_t) -> ~[~str] {
+impl FromCurlInfoPtr for Vec<String> {
+    fn from_curl_info_ptr(ptr: uintptr_t) -> Vec<String> {
         if ptr == 0 {           // dummy create :), rust use this to identify which type to use
-            ~[]
+            Vec::new()
         } else {
             // unsafe {
-            // let head: *SList = cast::transmute(ptr);
+            // let head: *SList = mem::transmute(ptr);
             // let mut p: SList = head;
-            // let mut ret : ~[~str] = ~[];
+            // let mut ret : ~[String] = ~[];
             // while p != 0 {
             //     ret.append(CString::new(p.data, false).as_str().to_str());
             //     p = p.next;
             // }
             // ret
             // TODO: implement, free slist
-            ~[~"DUMMY-INFO-SLIST-RETURN"]
+            vec!("DUMMY-INFO-SLIST-RETURN".to_string())
         }
     }
 }
@@ -190,7 +173,7 @@ impl Curl {
     }
 
     // FIXME: handle \x00 byte in string
-    pub fn escape(&self, url: &str) -> ~str {
+    pub fn escape(&self, url: &str) -> String {
         url.with_c_str(|c_buf| {
                 unsafe {
                     let ret = curl_easy_escape(self.handle, c_buf, url.len() as c_int);
@@ -214,14 +197,16 @@ impl Curl {
     }
 
     pub fn getinfo<T: FromCurlInfoPtr>(&self, option: c_int) -> Option<T> {
-        let inf : T = FromCurlInfoPtr::from_curl_info_ptr(0 as uintptr_t);
-        let p = inf.new_ptr();
-        let ret = unsafe { curl_easy_getinfo(self.handle, option, cast::transmute(p)) };
+        //let inf : T = FromCurlInfoPtr::from_curl_info_ptr(0 as uintptr_t);
+        //let p = inf.new_ptr();
+        let mut t: T = unsafe { mem::zeroed() };
+        let p: *mut T = &mut t;
+        let ret = unsafe { curl_easy_getinfo(self.handle, option, p as *mut c_void) };
         if ret == 0 {           // OK
-            let val : T = unsafe { FromCurlInfoPtr::from_curl_info_ptr(cast::transmute(p)) };
+            let val : T = unsafe { FromCurlInfoPtr::from_curl_info_ptr(mem::transmute(p)) };
             Some(val)
         } else {
-            // println!("!!!! fail getinfo() ret={}", ret);
+            debug!("!!!! fail getinfo() ret={}", ret);
             None
         }
     }
@@ -234,15 +219,21 @@ impl Curl {
     pub fn setopt<T: ToCurlOptParam>(&self, option: c_int, param: T) -> int {
         match option {
             opt::PROGRESSFUNCTION =>
-                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(c_curl_cb_progress_fn)) as int },
+                unsafe { curl_easy_setopt(self.handle, option, mem::transmute(c_curl_cb_progress_fn)) as int },
             opt::WRITEFUNCTION =>
-                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(c_curl_cb_write_fn)) as int },
+                unsafe { curl_easy_setopt(self.handle, option, mem::transmute(c_curl_cb_write_fn)) as int },
             opt::READFUNCTION =>
-                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(c_curl_cb_read_fn)) as int },
+                unsafe { curl_easy_setopt(self.handle, option, mem::transmute(c_curl_cb_read_fn)) as int },
             opt::HEADERFUNCTION =>
-                unsafe { curl_easy_setopt(self.handle, option, cast::transmute(c_curl_cb_header_fn)) as int },
+                unsafe { curl_easy_setopt(self.handle, option, mem::transmute(c_curl_cb_header_fn)) as int },
             _ =>
-                unsafe { curl_easy_setopt(self.handle, option, param.to_curl_opt_param()) as int }
+                unsafe {
+                    let mut res = 0;
+                    param.with_curl_opt_param(|param| {
+                        res = curl_easy_setopt(self.handle, option, param) as int;
+                    });
+                    res
+                }
         }
     }
 
@@ -250,7 +241,7 @@ impl Curl {
         unsafe { curl_easy_reset(self.handle) }
     }
 
-    pub fn unescape(&self, url: &str) -> ~str {
+    pub fn unescape(&self, url: &str) -> String {
         let mut outlen: c_int = 0;  // does not need to be mut
         url.with_c_str(|c_buf| {
                 unsafe {
@@ -263,7 +254,7 @@ impl Curl {
     }
 }
 
-pub fn strerror(code: int) -> ~str {
+pub fn strerror(code: int) -> String {
     unsafe {
         let cver = CString::new(curl_easy_strerror(code as c_int), false);
         cver.as_str().unwrap().to_str()

@@ -1,10 +1,14 @@
-#[crate_id = "curl#0.1dev"];
-#[crate_type = "rlib"];
-#[crate_type = "dylib"];
-#[desc = "A rust package for libcurl."];
-#[license = "MIT"];
+#![crate_id = "curl#0.1dev"]
+#![crate_type = "rlib"]
+#![crate_type = "dylib"]
+#![desc = "A rust package for libcurl."]
+#![license = "MIT"]
+#![feature(phase)]
 
-use std::libc::{c_char, c_long, c_int};
+extern crate libc;
+#[phase(plugin, link)] extern crate log;
+
+use libc::{c_char, c_long, c_int};
 use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
@@ -31,7 +35,7 @@ pub fn global_cleanup() {
     unsafe { curl_global_cleanup() }
 }
 
-pub fn version() -> ~str {
+pub fn version() -> String {
     unsafe {
         // for curl version, we don't own it
         let cver = CString::new(curl_version(), false);

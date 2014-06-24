@@ -1,4 +1,4 @@
-use std::libc::types::os::arch::c95::c_int;
+use libc::types::os::arch::c95::c_int;
 
 static LONG: c_int = 0;
 static OBJECTPOINT: c_int = 10_000;

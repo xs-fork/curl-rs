@@ -1,10 +1,11 @@
 #[license = "MIT"];
 
+extern crate libc;
 extern crate curl;
 
-use std::libc::{fopen, fclose};
+use libc::{fopen, fclose};
 use std::c_str;
-use std::cast;
+use std::mem;
 
 static TEST_URL : &'static str = "http://www.baidu.com/";
 
@@ -30,15 +31,15 @@ fn test_easy_perform_only() {
 
 #[test]
 fn test_easy_strerror() {
-    assert!(curl::easy::strerror(0) == ~"No error");
+    assert!(curl::easy::strerror(0).as_slice() == "No error");
     assert!(curl::easy::strerror(3).len() > 0);
 }
 
 #[test]
 fn test_easy_escape() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.escape("abcEFG"), ~"abcEFG");
-    assert_eq!(c.escape("&*()"), ~"%26%2A%28%29");
+    assert_eq!(c.escape("abcEFG").as_slice(), "abcEFG");
+    assert_eq!(c.escape("&*()").as_slice(), "%26%2A%28%29");
     // c.escape("\x00fuck"));
     c.cleanup();
 }
@@ -64,8 +65,8 @@ fn test_easy_reset() {
 #[test]
 fn test_easy_unescape() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.unescape("abcEFG"), ~"abcEFG");
-    assert_eq!(c.unescape("%26%2A%28%29"), ~"&*()");
+    assert_eq!(c.unescape("abcEFG").as_slice(), "abcEFG");
+    assert_eq!(c.unescape("%26%2A%28%29").as_slice(), "&*()");
     c.cleanup();
 }
 
@@ -74,7 +75,7 @@ fn test_easy_setopt_URL() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     let ret = c.perform();
-    let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
+    let eurl : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
 }
@@ -85,9 +86,8 @@ fn test_easy_setopt() {
     assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
-    let eurl : Option<~str> = c.getinfo(curl::info::EFFECTIVE_URL);
+    let eurl : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
     assert_eq!(ret, 0);
-
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_global_init() {
 fn test_easy_setopt_slist() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, "http://fledna.duapp.com/ip"), 0);
-    c.setopt(curl::opt::HTTPHEADER, ~[~"X-Dummy: just a test."]);
+    c.setopt(curl::opt::HTTPHEADER, vec!("X-Dummy: just a test.".to_string()));
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
@@ -155,6 +155,7 @@ fn test_easy_getinfo() {
     c.setopt(curl::opt::URL, TEST_URL);
     c.setopt(curl::opt::WRITEFUNCTION, 0);
     c.perform();
+
     let mut val : Option<int> = c.getinfo(curl::info::RESPONSE_CODE);
     assert_eq!(val.unwrap(), 200);
     val = c.getinfo(curl::info::REQUEST_SIZE);

@@ -1,4 +1,4 @@
-use std::libc::types::os::arch::c95::c_int;
+use libc::types::os::arch::c95::c_int;
 
 static CURLINFO_STRING : c_int = 0x100000;
 static CURLINFO_LONG   : c_int = 0x200000;
