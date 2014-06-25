@@ -1,14 +1,13 @@
 use libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, FILE, c_void};
 use std::c_str::CString;
-use std::path::BytesContainer;
 use std::str;
-use std::ptr::RawPtr;
 use std::mem;
-use std::gc::Gc;
 use std::to_str::ToStr;
 
 use opt;
 
+#[allow(dead_code)]
+#[allow(unused_variable)]
 #[link(name = "curl")]
 extern {
     fn curl_easy_escape(h: uintptr_t, url: *c_char, length: c_int) -> *c_char;
@@ -242,7 +241,7 @@ impl Curl {
     }
 
     pub fn unescape(&self, url: &str) -> String {
-        let mut outlen: c_int = 0;  // does not need to be mut
+        let outlen: c_int = 0;
         url.with_c_str(|c_buf| {
                 unsafe {
                     let ret = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &outlen);
@@ -264,6 +263,7 @@ pub fn strerror(code: int) -> String {
 
 // Callback
 
+#[allow(unused_variable)]
 pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,  dlnow: c_double,
                                         ultotal: c_double, ulnow: c_double) -> c_int {
     print!("\x08\x08\x08\x08\x08\x08\x08now: = {}%\r", dlnow/dltotal*100f64);
@@ -275,16 +275,19 @@ pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,
 }
 
 // size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
+#[allow(unused_variable)]
 pub extern "C" fn c_curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     size * nmemb
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
+#[allow(unused_variable)]
 pub extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
+#[allow(unused_variable)]
 pub extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }

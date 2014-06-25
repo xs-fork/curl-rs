@@ -1,4 +1,4 @@
-#[license = "MIT"];
+#![license = "MIT"]
 
 extern crate libc;
 extern crate curl;
@@ -93,7 +93,7 @@ fn test_easy_setopt() {
 #[test]
 fn test_easy_setopt_bytes() {
     let c = curl::easy::Curl::init();
-    assert_eq!(c.setopt(curl::opt::URL, bytes!("http://www.baidu.com/")), 0);
+    assert_eq!(c.setopt(curl::opt::URL, b"http://www.baidu.com/"), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
     assert_eq!(ret, 0);
