@@ -4,8 +4,6 @@ extern crate libc;
 extern crate curl;
 
 use libc::{fopen, fclose};
-use std::c_str;
-use std::mem;
 
 static TEST_URL : &'static str = "http://www.baidu.com/";
 
@@ -71,11 +69,11 @@ fn test_easy_unescape() {
 }
 
 #[test]
-fn test_easy_setopt_URL() {
+fn test_easy_setopt_url() {
     let c = curl::easy::Curl::init();
     assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     let ret = c.perform();
-    let eurl : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
+    let _ : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
     assert!(ret == 0 || ret == 7); // OK or cound't connect
     c.cleanup();
 }
@@ -86,7 +84,7 @@ fn test_easy_setopt() {
     assert_eq!(c.setopt(curl::opt::URL, TEST_URL), 0);
     assert_eq!(c.setopt(curl::opt::VERBOSE, false), 0);
     let ret = c.perform();
-    let eurl : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
+    let _ : Option<String> = c.getinfo(curl::info::EFFECTIVE_URL);
     assert_eq!(ret, 0);
 }
 
@@ -143,8 +141,8 @@ fn test_easy_setopt_progress_function() {
     //     0
     // };
     c.setopt(curl::opt::NOPROGRESS, false);
-    c.setopt(curl::opt::WRITEFUNCTION, 0);
-    let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0);
+    c.setopt(curl::opt::WRITEFUNCTION, 0i);
+    let ret = c.setopt(curl::opt::PROGRESSFUNCTION, 0i);
     assert_eq!(ret, 0);
     assert_eq!(c.perform(), 42);
 }
@@ -153,7 +151,7 @@ fn test_easy_setopt_progress_function() {
 fn test_easy_getinfo() {
     let c = curl::easy::Curl::init();
     c.setopt(curl::opt::URL, TEST_URL);
-    c.setopt(curl::opt::WRITEFUNCTION, 0);
+    c.setopt(curl::opt::WRITEFUNCTION, 0i);
     c.perform();
 
     let mut val : Option<int> = c.getinfo(curl::info::RESPONSE_CODE);
