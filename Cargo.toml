@@ -1,5 +1,5 @@
 [package]
-name = "rust-curl"
+name = "curl"
 version = "0.0.1"
 authors = ["andelf@gmail.com", "valerii.hiora@gmail.com"]
 
@@ -8,6 +8,6 @@ name = "test"
 path = "src/test.rs"
 
 [[lib]]
-name = "rust-curl"
+name = "curl"
 crate_type = ["rlib"]
 path = "src/lib.rs"
