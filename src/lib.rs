@@ -13,6 +13,8 @@ use std::c_str::CString;
 use std::path::BytesContainer;
 use std::str;
 
+pub use Curl = self::easy::Curl;
+
 #[link(name = "curl")]
 extern {
     fn curl_version() -> *c_char;
@@ -43,6 +45,8 @@ pub fn version() -> String {
     }
 }
 
+pub mod handlers;
+pub mod http;
 pub mod easy;
-pub mod opt;
 pub mod info;
+pub mod opt;

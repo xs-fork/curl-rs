@@ -1,7 +1,6 @@
-use libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, FILE, c_void};
+use libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, c_void};
 use std::c_str::CString;
-use std::str;
-use std::mem;
+use std::{mem, str};
 use std::to_str::ToStr;
 
 use opt;
@@ -41,6 +40,13 @@ impl ToCurlOptParam for int {
     }
 }
 
+impl<T> ToCurlOptParam for *T {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        unsafe { f(mem::transmute(*self)) }
+    }
+}
+
+
 impl ToCurlOptParam for bool {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         match *self {
@@ -76,18 +82,19 @@ impl ToCurlOptParam for Vec<String> {
     }
 }
 
+/*
 impl ToCurlOptParam for *FILE {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         unsafe { f(mem::transmute(*self)) }
     }
 }
+*/
 
 impl<'r> ToCurlOptParam for |f64,f64,f64,f64|:'r -> int {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         unsafe { f(mem::transmute(self)) }
     }
 }
-
 
 // for curl_easy_getinfo()
 pub trait FromCurlInfoPtr {
@@ -182,7 +189,7 @@ impl Curl {
             })
     }
 
-    pub fn init() -> Curl {
+    pub fn new() -> Curl {
         Curl { handle: unsafe { curl_easy_init() } }
     }
 
@@ -236,6 +243,10 @@ impl Curl {
         }
     }
 
+    pub fn set_write_func(&self, f: fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t) {
+        unsafe { curl_easy_setopt(self.handle, opt::WRITEFUNCTION, mem::transmute(f)) as int };
+    }
+
     pub fn reset(&self) {
         unsafe { curl_easy_reset(self.handle) }
     }
@@ -276,8 +287,23 @@ pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,
 
 // size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-pub extern "C" fn c_curl_cb_write_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
+pub extern "C" fn c_curl_cb_write_fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t {
     size * nmemb
+    /*
+    if user_data.is_null() {
+        size * nmemb
+    } else {
+        println!("And here goes the handler!");
+        let mut tmp: *&mut io::Writer = unsafe {mem::transmute(user_data)};
+        //let handler: &mut io::Writer = unsafe { *tmp };
+        let buf = unsafe { vec::raw::from_buf(p, (size * nmemb) as uint) };
+
+        match unsafe { (*tmp).write(buf.as_slice())} {
+            Ok(_) => size * nmemb,
+            _ => 0
+        }
+    }
+    */
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);

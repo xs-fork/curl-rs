@@ -21,8 +21,8 @@ $(LIB): src/lib.rs
 tests: $(TEST) doctest
 	$(TEST)
 
-$(TEST): src/test.rs $(LIB)
-	$(RUSTC) $< --test -o $@ --dep-info $(TEST_DEP_INFO) -L $(BUILD)
+$(TEST): src/lib.rs $(LIB)
+	$(RUSTC) $< --cfg test --crate-type=bin -o $@ --dep-info $(TEST_DEP_INFO) -L $(BUILD)
 
 doc: $(LIB)
 	$(RUSTDOC) -L $(BUILD) src/lib.rs
