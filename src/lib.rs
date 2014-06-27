@@ -6,7 +6,10 @@
 #![feature(phase)]
 
 extern crate libc;
+extern crate regex;
+
 #[phase(plugin, link)] extern crate log;
+#[phase(plugin)] extern crate regex_macros;
 
 use libc::{c_char, c_long, c_int};
 use std::c_str::CString;

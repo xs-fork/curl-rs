@@ -46,6 +46,11 @@ impl<T> ToCurlOptParam for *T {
     }
 }
 
+impl<T> ToCurlOptParam for *mut T {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        unsafe { f(mem::transmute(*self)) }
+    }
+}
 
 impl ToCurlOptParam for bool {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
@@ -81,14 +86,6 @@ impl ToCurlOptParam for Vec<String> {
             }))
     }
 }
-
-/*
-impl ToCurlOptParam for *FILE {
-    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
-        unsafe { f(mem::transmute(*self)) }
-    }
-}
-*/
 
 impl<'r> ToCurlOptParam for |f64,f64,f64,f64|:'r -> int {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
@@ -243,9 +240,29 @@ impl Curl {
         }
     }
 
-    pub fn set_write_func(&self, f: fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t) {
-        unsafe { curl_easy_setopt(self.handle, opt::WRITEFUNCTION, mem::transmute(f)) as int };
+    pub fn set_data_func(&self, option: c_int, f: fn(p: *mut u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t) -> int {
+        unsafe { curl_easy_setopt(self.handle, option, mem::transmute(f)) as int }
     }
+
+    // FIXME: actually opt::PROGRESSFUNCTION is deprecated in favor of
+    // http://curl.haxx.se/libcurl/c/CURLOPT_XFERINFOFUNCTION.html
+    pub fn set_progress_func(&self, f: fn(user_data: uintptr_t, dltotal: c_double,
+                                      dlnow: c_double, ultotal: c_double,
+                                      ulnow: c_double) -> size_t) -> int {
+        unsafe { curl_easy_setopt(self.handle, opt::PROGRESSFUNCTION, mem::transmute(f)) as int }
+    }
+
+    /*
+    pub fn set_callback_func<T>(&self, option: c_int, f: T) -> int {
+        match option {
+            opt::WRITEFUNCTION | opt::READFUNCTION | opt::HEADERFUNCTION =>
+                self.set_data_func(option, f),
+            opt::PROGRESSFUNCTION =>
+                self.set_progress_func(f),
+            _ => unreachable!()
+        }
+    }
+    */
 
     pub fn reset(&self) {
         unsafe { curl_easy_reset(self.handle) }
@@ -275,7 +292,7 @@ pub fn strerror(code: int) -> String {
 // Callback
 
 #[allow(unused_variable)]
-pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,  dlnow: c_double,
+extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,  dlnow: c_double,
                                         ultotal: c_double, ulnow: c_double) -> c_int {
     print!("\x08\x08\x08\x08\x08\x08\x08now: = {}%\r", dlnow/dltotal*100f64);
     if dlnow > 8000f64 {
@@ -287,34 +304,19 @@ pub extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,
 
 // size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-pub extern "C" fn c_curl_cb_write_fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t {
+extern "C" fn c_curl_cb_write_fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t {
     size * nmemb
-    /*
-    if user_data.is_null() {
-        size * nmemb
-    } else {
-        println!("And here goes the handler!");
-        let mut tmp: *&mut io::Writer = unsafe {mem::transmute(user_data)};
-        //let handler: &mut io::Writer = unsafe { *tmp };
-        let buf = unsafe { vec::raw::from_buf(p, (size * nmemb) as uint) };
-
-        match unsafe { (*tmp).write(buf.as_slice())} {
-            Ok(_) => size * nmemb,
-            _ => 0
-        }
-    }
-    */
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-pub extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
+extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-pub extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
+extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 
