@@ -74,7 +74,7 @@ pub trait ContentWrapper {
 pub struct Response {
     url: String,
     pub headers: HashMap<String, String>,
-    pub status_code: u8,
+    pub status_code: u16,
     pub status_message: String,
     pub content: Option<Box<ContentWrapper>>
 }
@@ -209,7 +209,7 @@ impl Client {
         let res = match res {
             0 => {
                 let mut val : Option<int> = self.session.getinfo(info::RESPONSE_CODE);
-                response.status_code = val.unwrap() as u8;
+                response.status_code = val.unwrap() as u16;
                 response.content = Some(box handler as Box<ContentWrapper>);
                 Ok(response)
             },
@@ -348,7 +348,7 @@ mod test
         let mut req = c.new_get_request("/");
 
         let resp = c.perform(&req).unwrap();
-        assert_eq!(resp.status_code, 302);
+        assert_eq!(resp.status_code / 100, 3);
 
         req.follow_redirects = true;
         let resp = c.perform(&req).unwrap();
