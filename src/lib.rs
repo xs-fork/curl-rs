@@ -53,3 +53,6 @@ pub mod http;
 pub mod easy;
 pub mod info;
 pub mod opt;
+
+#[cfg(test)]
+mod test;
