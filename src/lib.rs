@@ -20,7 +20,7 @@ pub use Curl = self::easy::Curl;
 
 #[link(name = "curl")]
 extern {
-    fn curl_version() -> *c_char;
+    fn curl_version() -> *const c_char;
     fn curl_global_init(flags: c_long) -> c_int;
     fn curl_global_cleanup();
 }

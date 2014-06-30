@@ -9,18 +9,18 @@ use opt;
 #[allow(unused_variable)]
 #[link(name = "curl")]
 extern {
-    fn curl_easy_escape(h: uintptr_t, url: *c_char, length: c_int) -> *c_char;
+    fn curl_easy_escape(h: uintptr_t, url: *const c_char, length: c_int) -> *const c_char;
     fn curl_easy_init() -> uintptr_t;
     fn curl_easy_cleanup(h: uintptr_t);
     fn curl_easy_duphandle(h: uintptr_t) -> uintptr_t;
     fn curl_easy_getinfo(h: uintptr_t, inf: c_int, ptr: *mut c_void) -> c_int;
     fn curl_easy_perform(h: uintptr_t) -> c_int;
     fn curl_easy_reset(h: uintptr_t);
-    fn curl_easy_strerror(code: c_int) -> *c_char;
+    fn curl_easy_strerror(code: c_int) -> *const c_char;
     fn curl_easy_setopt(h: uintptr_t, option: c_int, parameter: uintptr_t) -> c_int;
-    fn curl_easy_unescape(h: uintptr_t, url: *c_char, inlength: c_int, outlength: *c_int) -> *c_char;
-    fn curl_free(ptr: *c_char);
-    fn curl_slist_append(list: uintptr_t, string: *c_char) -> uintptr_t;
+    fn curl_easy_unescape(h: uintptr_t, url: *const c_char, inlength: c_int, outlength: *mut c_int) -> *mut c_char;
+    fn curl_free(ptr: *mut c_char);
+    fn curl_slist_append(list: uintptr_t, string: *const c_char) -> uintptr_t;
     fn curl_slist_free_all(list: uintptr_t);
 }
 
@@ -40,7 +40,7 @@ impl ToCurlOptParam for int {
     }
 }
 
-impl<T> ToCurlOptParam for *T {
+impl<T> ToCurlOptParam for *const T {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         unsafe { f(mem::transmute(*self)) }
     }
@@ -104,7 +104,7 @@ impl FromCurlInfoPtr for String {
             "".to_string()
         } else {
             unsafe {
-                let p : **c_char = mem::transmute(ptr);
+                let p : *const *const c_char = mem::transmute(ptr);
                 // CString -> Option<&'a str> -> &'a str -> String
                 CString::new(*p, false).as_str().unwrap().to_str()
             }
@@ -118,7 +118,7 @@ impl FromCurlInfoPtr for int {
             0
         } else {
             unsafe {
-                let p : *c_long = mem::transmute(ptr);
+                let p : *mut c_long = mem::transmute(ptr);
                 *p as int
             }
         }
@@ -131,7 +131,7 @@ impl FromCurlInfoPtr for f64 {
             0f64
         } else {
             unsafe {
-                let p : *c_double = mem::transmute(ptr);
+                let p : *mut c_double = mem::transmute(ptr);
                 *p as f64
             }
         }
@@ -240,7 +240,7 @@ impl Curl {
         }
     }
 
-    pub fn set_data_func(&self, option: c_int, f: fn(p: *mut u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t) -> int {
+    pub fn set_data_func(&self, option: c_int, f: fn(p: *mut u8, size: size_t, nmemb: size_t, user_data: *mut c_void) -> size_t) -> int {
         unsafe { curl_easy_setopt(self.handle, option, mem::transmute(f)) as int }
     }
 
@@ -269,11 +269,11 @@ impl Curl {
     }
 
     pub fn unescape(&self, url: &str) -> String {
-        let outlen: c_int = 0;
+        let mut outlen: c_int = 0;
         url.with_c_str(|c_buf| {
                 unsafe {
-                    let ret = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &outlen);
-                    let unescaped_url = str::raw::from_buf_len(ret as *u8, outlen as uint);
+                    let ret: *mut c_char = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &mut outlen);
+                    let unescaped_url = str::raw::from_buf_len(ret as *const u8, outlen as uint);
                     curl_free(ret);
                     unescaped_url
                 }
@@ -304,19 +304,19 @@ extern "C" fn c_curl_cb_progress_fn(user_data: uintptr_t, dltotal: c_double,  dl
 
 // size_t function( char *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-extern "C" fn c_curl_cb_write_fn(p: *u8, size: size_t, nmemb: size_t, user_data: *c_void) -> size_t {
+extern "C" fn c_curl_cb_write_fn(p: *const u8, size: size_t, nmemb: size_t, user_data: *mut c_void) -> size_t {
     size * nmemb
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-extern "C" fn c_curl_cb_read_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
+extern "C" fn c_curl_cb_read_fn(p: *mut c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *userdata);
 #[allow(unused_variable)]
-extern "C" fn c_curl_cb_header_fn(p: *c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
+extern "C" fn c_curl_cb_header_fn(p: *const c_char, size: size_t, nmemb: size_t, user_data: uintptr_t) -> size_t {
     0
 }
 

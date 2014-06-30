@@ -197,7 +197,7 @@ impl Client {
             let dumb = Dumb {
                 handler: &mut handler,
             };
-            let dumb_ptr: *Dumb = &dumb;
+            let dumb_ptr: *const Dumb = &dumb;
             let ptr = unsafe {response.as_ptr()};
 
             self.session.setopt(opt::WRITEDATA, dumb_ptr);
@@ -224,8 +224,8 @@ impl Client {
     // Curl callbacks implementations
     // Write expects user_data to be *Response
     fn http_write_fn(p: *mut u8, size: libc::size_t, nmemb: libc::size_t,
-                     user_data: *libc::c_void) -> libc::size_t {
-        let dumb: *Dumb = unsafe { mem::transmute(user_data) };
+                     user_data: *mut libc::c_void) -> libc::size_t {
+        let dumb: *const Dumb = unsafe { mem::transmute(user_data) };
         let buf = unsafe { c_vec::CVec::new(p, (size * nmemb) as uint)};
 
         match unsafe { (*dumb).handler.write(buf.as_slice())} {
@@ -236,13 +236,13 @@ impl Client {
 
     // Read expects user_data to be *Request
     fn http_read_fn(p: *mut u8, size: libc::size_t, nmemb: libc::size_t,
-                    user_data: *libc::c_void) -> libc::size_t {
+                    user_data: *mut libc::c_void) -> libc::size_t {
         size * nmemb
     }
 
     // Header expects user_data to be *Response
     fn http_header_fn(p: *mut u8, size: libc::size_t, nmemb: libc::size_t,
-                      user_data: *libc::c_void) -> libc::size_t {
+                      user_data: *mut libc::c_void) -> libc::size_t {
         let response: *mut Response = unsafe { mem::transmute(user_data) };
         if response == ptr::mut_null() {
             size * nmemb
@@ -312,7 +312,7 @@ impl Request {
 }
 
 impl Response {
-    pub unsafe fn as_ptr(&self) -> *Response {
+    pub unsafe fn as_ptr(&self) -> *const Response {
         mem::transmute(self)
     }
 }
