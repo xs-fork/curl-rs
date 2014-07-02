@@ -12,11 +12,11 @@ use std::{c_vec, io, mem, ptr, raw, str, vec};
 /// i.e. that method name will be generated
 /// dynamically
 pub enum Method {
-    GET,
-    POST,
-    DELETE,
-    HEAD,
-    PUT,
+    Get,
+    Post,
+    Delete,
+    Head,
+    Put,
     Custom(&'static str)
 }
 
@@ -126,23 +126,23 @@ impl Client {
     /// Constructs GET request relatively to base URL
     pub fn new_get_request(&self, rel_url: &str) -> Request {
         // FIXME: redundand string duplication
-        Request::new(Client::get_rel_url(self.base_url.as_slice(), rel_url).as_slice(), GET)
+        Request::new(Client::get_rel_url(self.base_url.as_slice(), rel_url).as_slice(), Get)
     }
 
     /// Constructs POST request relatively to base URL
     pub fn new_post_request(&self, rel_url: &str) -> Request {
         // FIXME: redundand string duplication
-        Request::new(Client::get_rel_url(self.base_url.as_slice(), rel_url).as_slice(), POST)
+        Request::new(Client::get_rel_url(self.base_url.as_slice(), rel_url).as_slice(), Post)
     }
 
     fn update_method(&mut self, method: Method) -> int {
         match method {
-            GET => self.session.setopt(opt::HTTPGET, true),
-            POST => self.session.setopt(opt::HTTPPOST, true),
-            PUT => self.session.setopt(opt::UPLOAD, "PUT"),
-            DELETE => self.session.setopt(opt::CUSTOMREQUEST, "DELETE"),
+            Get => self.session.setopt(opt::HTTPGET, true),
+            Post => self.session.setopt(opt::HTTPPOST, true),
+            Put => self.session.setopt(opt::UPLOAD, "PUT"),
+            Delete => self.session.setopt(opt::CUSTOMREQUEST, "DELETE"),
             Custom(name) => self.session.setopt(opt::CUSTOMREQUEST, name),
-            HEAD => {
+            Head => {
                 let res = self.session.setopt(opt::HTTPGET, true);
                 if res != 0 {
                     res
