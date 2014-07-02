@@ -1,4 +1,4 @@
-use libc::{uintptr_t, c_int, c_char, c_double, size_t, c_long, c_void};
+use libc::{uintptr_t, c_int, c_uint, c_char, c_double, size_t, c_long, c_void};
 use std::c_str::CString;
 use std::{mem, str};
 use std::to_str::ToStr;
@@ -14,7 +14,7 @@ extern {
     fn curl_easy_cleanup(h: uintptr_t);
     fn curl_easy_duphandle(h: uintptr_t) -> uintptr_t;
     fn curl_easy_getinfo(h: uintptr_t, inf: c_int, ptr: *mut c_void) -> c_int;
-    fn curl_easy_perform(h: uintptr_t) -> c_int;
+    fn curl_easy_perform(h: uintptr_t) -> c_uint;
     fn curl_easy_reset(h: uintptr_t);
     fn curl_easy_strerror(code: c_int) -> *const c_char;
     fn curl_easy_setopt(h: uintptr_t, option: c_int, parameter: uintptr_t) -> c_int;
@@ -214,9 +214,8 @@ impl Curl {
         }
     }
 
-    pub fn perform(&self) -> int {
-        let ret = unsafe { curl_easy_perform(self.handle) };
-        ret as int
+    pub fn perform(&self) -> uint {
+        unsafe { curl_easy_perform(self.handle) as uint }
     }
 
     pub fn setopt<T: ToCurlOptParam>(&self, option: c_int, param: T) -> int {

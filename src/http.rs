@@ -2,9 +2,12 @@ use easy::{Curl};
 use info;
 use libc;
 use opt;
+use errors::CURLE_OK;
 use std::collections::HashMap;
 use std::io::{MemWriter, MemReader};
-use std::{c_vec, mem, ptr};
+use std::{c_str, c_vec, mem, ptr};
+
+pub static CURL_ERROR_SIZE: uint = 256;
 
 /// HTTP Method, nuff said
 ///
@@ -21,41 +24,10 @@ pub enum Method {
     Custom(&'static str)
 }
 
-/// Kinds of errors Curl might have
 #[deriving(Show)]
-pub enum Error {
-    InvalidUrl,
-    UnsupportedProtocol,
-    NetworkError,
-    UnresolvedProxy,
-    UnresolvedHost,
-    NoConnection,
-    WriteError,
-    ReadError,
-    OutOfMemory,
-    TimedOut,
-    PostError,
-    RangeError,
-    SslConnectionError,
-    UncompressError, // ZLIB function not found
-    AbortedByCallback,
-    TooManyRedirects,
-    GotNothing,
-    SslEngineNotFound,
-    SslEngineSetFailed,
-    SendError,
-    RecvError,
-    SslCertProblem,
-    SslCipher,
-    SslCaCert,
-    BadContentEncoding,
-    FileSizeExceeded,
-    SslFailed,
-    SslEngineInitFailed,
-    LoginDenied,
-    SslCaCertBadFile,
-    RemoteFileNotFound,
-    SslCrlBadFile,
+struct CurlError {
+    pub code: uint,
+    pub message: String
 }
 
 type ResponseWriteClosure<'a> = |&c_vec::CVec<u8>|:'a -> uint;
@@ -67,6 +39,7 @@ type ResponseWriteClosure<'a> = |&c_vec::CVec<u8>|:'a -> uint;
 pub struct Client {
     base_url: String,
     session: Curl,
+    error_buf: Vec<u8>
 }
 
 /// Represents HTTP response
@@ -109,15 +82,23 @@ impl Client {
         let session = Curl::new();
         session.setopt(opt::NOSIGNAL, true);
 
+        let mut error_buf = Vec::with_capacity(CURL_ERROR_SIZE + 1);
+
         // Setup all default functions at once
         session.set_data_func(opt::WRITEFUNCTION, Client::http_write_fn);
         session.set_data_func(opt::HEADERFUNCTION, Client::http_header_fn);
         session.set_data_func(opt::READFUNCTION, Client::http_read_fn);
         session.set_progress_func(Client::http_progress_fn);
 
+        // FIXME: check on practice if ERRORBUFFER provides
+        // more verbosity than just using strerror as the latter
+        // one sounds easier
+        session.setopt(opt::ERRORBUFFER, error_buf.as_mut_ptr());
+
         Client {
             base_url: base_url.to_string(),
             session: session,
+            error_buf: error_buf,
         }
     }
 
@@ -166,7 +147,7 @@ impl Client {
     // as described here: http://curl.haxx.se/libcurl/c/CURLOPT_POST.html
     // for PUT/POST provide READFUNCTION
     /// Sends request to server and returns a response (if any)
-    pub fn perform(&mut self, req: &Request) -> Result<Response, Error> {
+    pub fn perform(&mut self, req: &Request) -> Result<Response, CurlError> {
         let _ = self.session.setopt(opt::URL, req.url.as_slice());
         let _ = self.session.setopt(opt::USERAGENT, "CRust/0.0.1");
 
@@ -219,8 +200,8 @@ impl Client {
         self.session.setopt(opt::HEADERDATA, 0u);
         self.session.setopt(opt::WRITEDATA, 0u);
 
-        let res = match res {
-            0 => {
+        let res = match (res as libc::c_uint) {
+            CURLE_OK => {
                 let val: Option<int> = self.session.getinfo(info::RESPONSE_CODE);
                 response.status_code = val.unwrap() as u16;
 
@@ -232,9 +213,10 @@ impl Client {
 
                 Ok(response)
             },
-            _ => {
-                Err(NetworkError)
-            }
+            _ => Err(CurlError {
+                code: res,
+                message: self.error_buf.as_slice().to_c_str().as_str().unwrap().to_string()
+            }),
         };
 
         res

@@ -51,6 +51,7 @@ pub fn version() -> String {
 pub mod handlers;
 pub mod http;
 pub mod easy;
+pub mod errors;
 pub mod info;
 pub mod opt;
 
