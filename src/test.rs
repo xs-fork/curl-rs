@@ -126,14 +126,15 @@ fn test_easy_setopt_slist() {
 fn test_easy_setopt_writedata() {
     let c = Curl::new();
     assert_eq!(c.setopt(opt::URL, TEST_URL), 0);
-    let fp = "/tmp/test.out".to_c_str().with_ref(|fname| {
-        "w".to_c_str().with_ref(|mode| {
-            unsafe { fopen(fname, mode) }
-        })
-    });
+
+    let fname = "/tmp/test.out".to_c_str().as_ptr();
+    let mode = "w".to_c_str().as_ptr();
+    let fp = unsafe { fopen(fname, mode) };
+
     c.setopt(opt::WRITEDATA, fp);
     c.setopt(opt::VERBOSE, false);
     c.perform();
+
     unsafe { fclose(fp) };
 }
 
