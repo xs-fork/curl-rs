@@ -3,10 +3,6 @@ name = "curl"
 version = "0.0.1"
 authors = ["andelf@gmail.com", "valerii.hiora@gmail.com"]
 
-[[bin]]
-name = "test"
-path = "src/test.rs"
-
 [[lib]]
 name = "curl"
 crate_type = ["rlib"]
