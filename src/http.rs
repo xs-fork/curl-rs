@@ -3,7 +3,8 @@ use info;
 use libc;
 use opt;
 use std::collections::HashMap;
-use std::{c_vec, io, mem, ptr, raw, str, vec};
+use std::io::{MemWriter, MemReader};
+use std::{c_vec, mem, ptr};
 
 /// HTTP Method, nuff said
 ///
@@ -57,6 +58,8 @@ pub enum Error {
     SslCrlBadFile,
 }
 
+type ResponseWriteClosure<'a> = |&c_vec::CVec<u8>|:'a -> uint;
+
 /// The general HTTP client which is tied to a specific
 /// base URL and allows easy construction of relative requests
 ///
@@ -66,17 +69,24 @@ pub struct Client {
     session: Curl,
 }
 
-pub trait ContentWrapper {
-    fn as_bytes<'a>(&'a self) -> &'a [u8];
-}
-
 /// Represents HTTP response
 pub struct Response {
-    url: String,
+    pub url: String,
     pub headers: HashMap<String, String>,
     pub status_code: u16,
     pub status_message: String,
-    pub content: Option<Box<ContentWrapper>>
+    pub content_data: Option<Box<Reader>>,
+}
+
+trait PairedWriter: Writer {
+    fn consume(w: Self) -> Box<Reader>;
+}
+
+impl PairedWriter for MemWriter {
+    fn consume(w: MemWriter) -> Box<Reader> {
+        let buf = w.unwrap();
+        box MemReader::new(buf) as Box<Reader>
+    }
 }
 
 /// Represents HTTP request
@@ -93,14 +103,10 @@ pub struct Request {
     pub connection_timeout: Option<uint>,
 }
 
-struct Dumb<'a> {
-    handler: &'a mut io::Writer,
-}
-
 impl Client {
     /// Constructs a new client with a base URL
     pub fn new(base_url: &str) -> Client {
-        let mut session = Curl::new();
+        let session = Curl::new();
         session.setopt(opt::NOSIGNAL, true);
 
         // Setup all default functions at once
@@ -135,7 +141,7 @@ impl Client {
         Request::new(Client::get_rel_url(self.base_url.as_slice(), rel_url).as_slice(), Post)
     }
 
-    fn update_method(&mut self, method: Method) -> int {
+    fn update_for_method(&mut self, method: Method) -> int {
         match method {
             Get => self.session.setopt(opt::HTTPGET, true),
             Post => self.session.setopt(opt::HTTPPOST, true),
@@ -161,14 +167,15 @@ impl Client {
     // for PUT/POST provide READFUNCTION
     /// Sends request to server and returns a response (if any)
     pub fn perform(&mut self, req: &Request) -> Result<Response, Error> {
-        let res = self.session.setopt(opt::URL, req.url.as_slice());
-        let res = self.session.setopt(opt::USERAGENT, "CRust/0.0.1");
+        let _ = self.session.setopt(opt::URL, req.url.as_slice());
+        let _ = self.session.setopt(opt::USERAGENT, "CRust/0.0.1");
+
         if req.headers.len() > 0 {
             let header_vec: Vec<String> = req.headers.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
             self.session.setopt(opt::HTTPHEADER, header_vec);
         };
-        let res = self.session.setopt(opt::VERBOSE, false);
-        let res = self.update_method(req.method);
+        let _ = self.session.setopt(opt::VERBOSE, false);
+        let _ = self.update_for_method(req.method);
         let _ = self.session.setopt(opt::FOLLOWLOCATION, req.follow_redirects);
 
         // FIXME: introduce another option?
@@ -183,34 +190,46 @@ impl Client {
             self.session.setopt(opt::CONNECTTIMEOUT, req.connection_timeout.unwrap());
         }
 
+        let mut writer = MemWriter::new();
+
         let mut response = Response {
             status_code: 0,
             url: "".to_string(),
             headers: HashMap::new(),
             status_message: "".to_string(),
-            content: None,
+            content_data: None
         };
 
-
-        let mut handler = io::MemWriter::new();
         let res = {
-            let dumb = Dumb {
-                handler: &mut handler,
-            };
-            let dumb_ptr: *const Dumb = &dumb;
             let ptr = unsafe {response.as_ptr()};
-
-            self.session.setopt(opt::WRITEDATA, dumb_ptr);
             self.session.setopt(opt::HEADERDATA, ptr);
+
+            let mut cl: ResponseWriteClosure = |buf| {
+                match writer.write(buf.as_slice()) {
+                    Ok(_) => buf.len(),
+                    _ => 0
+                }
+            };
+            self.session.setopt(opt::WRITEDATA, &mut cl as *mut ResponseWriteClosure);
 
             self.session.perform()
         };
 
+        // Cleanup any unsafe data which is bound to current request
+        self.session.setopt(opt::HEADERDATA, 0u);
+        self.session.setopt(opt::WRITEDATA, 0u);
+
         let res = match res {
             0 => {
-                let mut val : Option<int> = self.session.getinfo(info::RESPONSE_CODE);
+                let val: Option<int> = self.session.getinfo(info::RESPONSE_CODE);
                 response.status_code = val.unwrap() as u16;
-                response.content = Some(box handler as Box<ContentWrapper>);
+
+                let val: Option<String> = self.session.getinfo(info::EFFECTIVE_URL);
+                response.url = val.unwrap();
+
+                let reader = PairedWriter::consume(writer);
+                response.content_data = Some(reader);
+
                 Ok(response)
             },
             _ => {
@@ -222,19 +241,24 @@ impl Client {
     }
 
     // Curl callbacks implementations
-    // Write expects user_data to be *Response
+    // Write expects user_data to be ptr to closure f: |&CVec<u8>| -> uint
+    // which should write that buffer anywhere it wants
+    #[allow(unused_variable)]
     fn http_write_fn(p: *mut u8, size: libc::size_t, nmemb: libc::size_t,
                      user_data: *mut libc::c_void) -> libc::size_t {
-        let dumb: *const Dumb = unsafe { mem::transmute(user_data) };
-        let buf = unsafe { c_vec::CVec::new(p, (size * nmemb) as uint)};
-
-        match unsafe { (*dumb).handler.write(buf.as_slice())} {
-            Ok(_) => (size * nmemb),
-            _ => 0
+        let resp: *mut ResponseWriteClosure = unsafe { mem::transmute(user_data) };
+        if resp == ptr::mut_null() {
+            size * nmemb
+        } else {
+            unsafe {
+                let buf = c_vec::CVec::new(p, (size * nmemb) as uint);
+                (*resp)(&buf) as libc::size_t
+            }
         }
     }
 
     // Read expects user_data to be *Request
+    #[allow(unused_variable)]
     fn http_read_fn(p: *mut u8, size: libc::size_t, nmemb: libc::size_t,
                     user_data: *mut libc::c_void) -> libc::size_t {
         size * nmemb
@@ -287,6 +311,7 @@ impl Client {
     }
 
     // Progress expects user_data to be *Response
+    #[allow(unused_variable)]
     fn http_progress_fn(user_data: libc::uintptr_t, dltotal: libc::c_double,
                         dlnow: libc::c_double, ultotal: libc::c_double,
                         ulnow: libc::c_double) -> libc::size_t {
@@ -317,29 +342,20 @@ impl Response {
     }
 }
 
-impl ContentWrapper for io::MemWriter {
-    fn as_bytes<'a>(&'a self) -> &'a [u8] {
-        self.get_ref()
-    }
-}
-
 #[cfg(test)]
 mod test
 {
-    use super::{Client, Request, Response};
-    use std::str;
+    use super::{Client};
 
     #[test]
     fn simple_get() {
         let mut c = Client::new("http://baidu.com");
-        let mut req = c.new_get_request("/");
+        let req = c.new_get_request("/");
 
         let resp = c.perform(&req).unwrap();
         assert_eq!(resp.status_code, 200);
-        let content = resp.content.unwrap();
-        let content_bytes = content.as_bytes();
-        let text = unsafe { str::raw::from_utf8(content_bytes) };
-        assert!(text.find_str("www.baidu.com").is_some());
+        let content = resp.content_data.unwrap().read_to_str().unwrap();
+        assert!(content.as_slice().find_str("www.baidu.com").is_some());
     }
 
     #[test]
