@@ -7,7 +7,7 @@ extern crate libc;
 use super::easy;
 use super::easy::Curl;
 use super::info;
-use libc::{fopen, fclose};
+use libc::{tmpfile, fclose};
 use super::opt;
 
 
@@ -127,9 +127,7 @@ fn test_easy_setopt_writedata() {
     let c = Curl::new();
     assert_eq!(c.setopt(opt::URL, TEST_URL), 0);
 
-    let fname = "/tmp/test.out".to_c_str().as_ptr();
-    let mode = "w".to_c_str().as_ptr();
-    let fp = unsafe { fopen(fname, mode) };
+    let fp = unsafe { tmpfile() };
 
     c.setopt(opt::WRITEDATA, fp);
     c.setopt(opt::VERBOSE, false);
