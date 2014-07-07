@@ -1,4 +1,4 @@
-#![crate_id = "curl#0.1dev"]
+#![crate_name = "curl-rs"]
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 #![desc = "A rust package for libcurl."]
