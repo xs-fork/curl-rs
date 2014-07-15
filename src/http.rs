@@ -336,7 +336,7 @@ mod test
 
         let resp = c.perform(&req).unwrap();
         assert_eq!(resp.status_code, 200);
-        let content = resp.content_data.unwrap().read_to_str().unwrap();
+        let content = resp.content_data.unwrap().read_to_string().unwrap();
         assert!(content.as_slice().find_str("www.baidu.com").is_some());
     }
 

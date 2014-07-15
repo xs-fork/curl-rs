@@ -1,7 +1,6 @@
 use libc::{uintptr_t, c_int, c_uint, c_char, c_double, size_t, c_long, c_void};
 use std::c_str::CString;
 use std::{mem, str};
-use std::to_str::ToStr;
 
 use opt;
 
@@ -106,7 +105,7 @@ impl FromCurlInfoPtr for String {
             unsafe {
                 let p : *const *const c_char = mem::transmute(ptr);
                 // CString -> Option<&'a str> -> &'a str -> String
-                CString::new(*p, false).as_str().unwrap().to_str()
+                CString::new(*p, false).as_str().unwrap().to_string()
             }
         }
     }
@@ -148,7 +147,7 @@ impl FromCurlInfoPtr for Vec<String> {
             // let mut p: SList = head;
             // let mut ret : ~[String] = ~[];
             // while p != 0 {
-            //     ret.append(CString::new(p.data, false).as_str().to_str());
+            //     ret.append(CString::new(p.data, false).as_str().to_string());
             //     p = p.next;
             // }
             // ret
@@ -181,7 +180,7 @@ impl Curl {
                 unsafe {
                     let ret = curl_easy_escape(self.handle, c_buf, url.len() as c_int);
                     // FIXME: owns c buffer, and free it, or not owns c buffer, manually call curl_free
-                    CString::new(ret, true).as_str().unwrap().to_str()
+                    CString::new(ret, true).as_str().unwrap().to_string()
                 }
             })
     }
@@ -283,7 +282,7 @@ impl Curl {
 pub fn strerror(code: int) -> String {
     unsafe {
         let cver = CString::new(curl_easy_strerror(code as c_int), false);
-        cver.as_str().unwrap().to_str()
+        cver.as_str().unwrap().to_string()
     }
 }
 
