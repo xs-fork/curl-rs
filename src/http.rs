@@ -5,7 +5,7 @@ use opt;
 use errors::CURLE_OK;
 use std::collections::HashMap;
 use std::io::{MemWriter, MemReader};
-use std::{c_str, c_vec, mem, ptr};
+use std::{c_vec, mem, ptr};
 
 pub static CURL_ERROR_SIZE: uint = 256;
 
@@ -200,7 +200,7 @@ impl Client {
         self.session.setopt(opt::HEADERDATA, 0u);
         self.session.setopt(opt::WRITEDATA, 0u);
 
-        let res = match (res as libc::c_uint) {
+        let res = match res as libc::c_uint {
             CURLE_OK => {
                 let val: Option<int> = self.session.getinfo(info::RESPONSE_CODE);
                 response.status_code = val.unwrap() as u16;

@@ -1,6 +1,6 @@
 use libc::{uintptr_t, c_int, c_uint, c_char, c_double, size_t, c_long, c_void};
 use std::c_str::CString;
-use std::{mem, str};
+use std::{mem, string};
 
 use opt;
 
@@ -271,7 +271,7 @@ impl Curl {
         url.with_c_str(|c_buf| {
                 unsafe {
                     let ret: *mut c_char = curl_easy_unescape(self.handle, c_buf, url.len() as c_int, &mut outlen);
-                    let unescaped_url = str::raw::from_buf_len(ret as *const u8, outlen as uint);
+                    let unescaped_url = string::raw::from_buf_len(ret as *const u8, outlen as uint);
                     curl_free(ret);
                     unescaped_url
                 }

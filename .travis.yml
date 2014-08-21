@@ -11,7 +11,7 @@ before_install:
   - sudo apt-get update
 
 install:
-  - sudo apt-get install rust-nightly
+  - sudo apt-get install rust-nightly libcurl4-gnutls-dev
 
 script:
   - make doc && make tests

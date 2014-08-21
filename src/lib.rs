@@ -14,9 +14,8 @@ extern crate regex;
 use libc::{c_char, c_long, c_int};
 use std::c_str::CString;
 use std::path::BytesContainer;
-use std::str;
 
-pub use Curl = self::easy::Curl;
+pub use self::easy::Curl as Curl;
 
 #[link(name = "curl")]
 extern {
@@ -44,7 +43,7 @@ pub fn version() -> String {
     unsafe {
         // for curl version, we don't own it
         let cver = CString::new(curl_version(), false);
-        str::from_utf8_owned(cver.container_into_owned_bytes()).unwrap()
+        String::from_utf8(cver.container_into_owned_bytes()).unwrap()
     }
 }
 
