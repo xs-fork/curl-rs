@@ -3,7 +3,7 @@ name = "curl"
 version = "0.0.1"
 authors = ["andelf@gmail.com", "valerii.hiora@gmail.com"]
 
-[[lib]]
+[lib]
 name = "curl"
 crate_type = ["rlib"]
 path = "src/lib.rs"
