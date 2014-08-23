@@ -39,6 +39,12 @@ impl ToCurlOptParam for int {
     }
 }
 
+impl ToCurlOptParam for uint {
+    fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
+        f(*self as uintptr_t)
+    }
+}
+
 impl<T> ToCurlOptParam for *const T {
     fn with_curl_opt_param(&self, f:|x: uintptr_t|) {
         unsafe { f(mem::transmute(*self)) }
