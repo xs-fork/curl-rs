@@ -48,15 +48,15 @@ pub struct Response {
     pub headers: HashMap<String, String>,
     pub status_code: u16,
     pub status_message: String,
-    pub content_data: Option<Box<Reader>>,
+    pub content_data: Option<Box<Reader+'static>>,
 }
 
 trait PairedWriter: Writer {
-    fn consume(w: Self) -> Box<Reader>;
+    fn consume(w: Self) -> Box<Reader+'static>;
 }
 
 impl PairedWriter for MemWriter {
-    fn consume(w: MemWriter) -> Box<Reader> {
+    fn consume(w: MemWriter) -> Box<Reader+'static> {
         let buf = w.unwrap();
         box MemReader::new(buf) as Box<Reader>
     }
