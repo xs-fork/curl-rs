@@ -1,7 +1,14 @@
 [package]
-name = "curl"
-version = "0.0.1"
-authors = ["andelf@gmail.com", "valerii.hiora@gmail.com"]
+name = "curl-rsl"
+version = "0.1.0"
+authors = ["XS <tonycody@qq.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/xs-fork/curl-rs"
+homepage = "https://github.com/xs-fork/curl-rs"
+documentation = "https://docs.rs/curl-rsl"
+description = "Native bindings to the libssh2 library"
+categories = ["command-line-utilities"]
+keywords = ["curl"]
 
 [lib]
 name = "curl"
